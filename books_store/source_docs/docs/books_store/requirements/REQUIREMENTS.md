@@ -239,7 +239,19 @@ The Book Management System is a REST API designed to provide basic CRUD operatio
 - Automatic loading via CommandLineRunner
 
 ---
+### Epic 6: UI Development
 
+#### US-10: UI development
+**As a** end user
+**I want to** have a simple UI where I can browse and perform all the operations
+**So that** I can immediately test and evaluate the system functionality
+
+**Acceptance Criteria:**
+-The user should be able to add
+-User should be able to perform the CRUD operations
+
+
+---
 ## Data Model Requirements
 
 ### Book Entity
