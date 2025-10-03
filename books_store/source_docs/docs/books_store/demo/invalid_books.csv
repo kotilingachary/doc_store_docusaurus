@@ -1,0 +1,5 @@
+name,author,price
+"Valid Book","Valid Author",29.99
+"","Invalid Author",39.99
+"Invalid Price Book","Another Author",not-a-number
+"Another Valid Book","Third Author",19.95

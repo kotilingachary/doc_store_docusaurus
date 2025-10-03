@@ -1,0 +1,1148 @@
+openapi: 3.0.3
+info:
+  title: Book Management API
+  description: |
+    A comprehensive REST API for managing books with full CRUD operations, search functionality, and bulk operations.
+
+    ## Features
+    - Complete CRUD operations for books
+    - Search by author and title
+    - Bulk upload operations with CSV/Excel file support
+    - Operation status tracking for bulk uploads
+    - Validation and error handling
+    - File size limits and format validation
+
+    ## Authentication
+    Currently, this API does not require authentication. Future versions may include authentication requirements.
+
+    ## Rate Limiting
+    No rate limiting is currently implemented.
+
+    ## Data Format
+    All dates are returned in ISO-8601 format (e.g., "2023-12-01T10:00:00").
+    All prices are returned as decimal numbers with up to 2 decimal places.
+  version: 1.0.0
+  contact:
+    name: Book Management API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://api.bookmanagement.com
+    description: Production server
+
+paths:
+  /books:
+    get:
+      summary: Get all books
+      description: Retrieves a list of all books in the system
+      operationId: getAllBooks
+      tags:
+        - Books
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+              examples:
+                books_list:
+                  summary: Example list of books
+                  value:
+                    - id: 1
+                      name: "Clean Code: A Handbook of Agile Software Craftsmanship"
+                      author: "Robert C. Martin"
+                      price: 42.99
+                    - id: 2
+                      name: "The Life-Changing Magic of Tidying Up"
+                      author: "Marie Kondo"
+                      price: 9.69
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create a new book
+      description: Creates a new book with the provided information
+      operationId: createBook
+      tags:
+        - Books
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookRequest'
+            examples:
+              new_book:
+                summary: Example new book
+                value:
+                  name: "Design Patterns: Elements of Reusable Object-Oriented Software"
+                  author: "Gang of Four"
+                  price: 54.99
+      responses:
+        '201':
+          description: Book created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+              examples:
+                created_book:
+                  summary: Successfully created book
+                  value:
+                    id: 5
+                    name: "Design Patterns: Elements of Reusable Object-Oriented Software"
+                    author: "Gang of Four"
+                    price: 54.99
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /books/{id}:
+    get:
+      summary: Get book by ID
+      description: Retrieves a specific book by its ID
+      operationId: getBookById
+      tags:
+        - Books
+      parameters:
+        - $ref: '#/components/parameters/BookIdParam'
+      responses:
+        '200':
+          description: Book found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+              examples:
+                book_found:
+                  summary: Example book
+                  value:
+                    id: 1
+                    name: "Clean Code: A Handbook of Agile Software Craftsmanship"
+                    author: "Robert C. Martin"
+                    price: 42.99
+        '404':
+          $ref: '#/components/responses/BookNotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      summary: Update or create book
+      description: Updates an existing book or creates a new one with the specified ID
+      operationId: updateOrCreateBook
+      tags:
+        - Books
+      parameters:
+        - $ref: '#/components/parameters/BookIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookRequest'
+            examples:
+              update_book:
+                summary: Update existing book
+                value:
+                  name: "Clean Code: A Handbook of Agile Software Craftsmanship (2nd Edition)"
+                  author: "Robert C. Martin"
+                  price: 49.99
+      responses:
+        '200':
+          description: Book updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '201':
+          description: New book created with specified ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      summary: Partially update book
+      description: Updates specific fields of an existing book (currently supports author field only)
+      operationId: patchBook
+      tags:
+        - Books
+      parameters:
+        - $ref: '#/components/parameters/BookIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookPatch'
+            examples:
+              update_author:
+                summary: Update book author
+                value:
+                  author: "Robert C. Martin (Uncle Bob)"
+      responses:
+        '200':
+          description: Book updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/BookNotFound'
+        '405':
+          $ref: '#/components/responses/UnsupportedPatchField'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete book by ID
+      description: Deletes a book by its ID (idempotent operation)
+      operationId: deleteBookById
+      tags:
+        - Books
+      parameters:
+        - $ref: '#/components/parameters/BookIdParam'
+      responses:
+        '200':
+          description: Book deleted successfully (or did not exist)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+              examples:
+                delete_success:
+                  summary: Successful deletion
+                  value:
+                    message: "Book deleted successfully"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /books/search/author:
+    get:
+      summary: Search books by author
+      description: Searches for books by author name (case-insensitive)
+      operationId: searchBooksByAuthor
+      tags:
+        - Books
+        - Search
+      parameters:
+        - name: name
+          in: query
+          required: true
+          description: Author name to search for
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+          example: "Martin Fowler"
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+              examples:
+                author_search:
+                  summary: Books by Martin Fowler
+                  value:
+                    - id: 3
+                      name: "Refactoring: Improving the Design of Existing Code"
+                      author: "Martin Fowler"
+                      price: 47.99
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /books/search/name:
+    get:
+      summary: Search books by title
+      description: Searches for books by title/name (case-insensitive)
+      operationId: searchBooksByTitle
+      tags:
+        - Books
+        - Search
+      parameters:
+        - name: title
+          in: query
+          required: true
+          description: Book title to search for
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+          example: "Clean Code"
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+              examples:
+                title_search:
+                  summary: Books with "Clean Code" in title
+                  value:
+                    - id: 1
+                      name: "Clean Code: A Handbook of Agile Software Craftsmanship"
+                      author: "Robert C. Martin"
+                      price: 42.99
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /books/delete/name:
+    delete:
+      summary: Delete book by name
+      description: Deletes a book by its exact title/name (case-insensitive)
+      operationId: deleteBookByName
+      tags:
+        - Books
+      parameters:
+        - name: title
+          in: query
+          required: true
+          description: Exact title of the book to delete
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+          example: "Clean Code"
+      responses:
+        '200':
+          description: Book deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /books/bulk:
+    post:
+      summary: Bulk upload books
+      description: |
+        Upload multiple books via CSV or Excel file. Supports asynchronous processing for large files.
+
+        **File Format Requirements:**
+        - CSV files with headers: name, author, price
+        - Excel files (.xlsx, .xls) with same column structure
+        - Maximum file size: 10MB
+        - Maximum 10,000 records per file
+
+        **Processing:**
+        - Small files (< 100 records): Processed synchronously
+        - Large files: Processed asynchronously with operation ID for tracking
+      operationId: bulkUploadBooks
+      tags:
+        - Books
+        - Bulk Operations
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV or Excel file containing book data
+              required:
+                - file
+            examples:
+              csv_upload:
+                summary: CSV file upload
+                description: Upload a CSV file with book data
+      responses:
+        '200':
+          description: Bulk upload completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkUploadResult'
+              examples:
+                sync_success:
+                  summary: Synchronous upload completed
+                  value:
+                    operationId: "bulk-001"
+                    totalRecords: 50
+                    successCount: 50
+                    failureCount: 0
+                    startTime: "2023-12-01T10:00:00"
+                    endTime: "2023-12-01T10:00:30"
+                    status: "COMPLETED"
+                    errors: []
+        '202':
+          description: Bulk upload started (asynchronous processing)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkUploadResult'
+              examples:
+                async_started:
+                  summary: Asynchronous upload started
+                  value:
+                    operationId: "bulk-002"
+                    totalRecords: 5000
+                    successCount: 0
+                    failureCount: 0
+                    startTime: "2023-12-01T10:00:00"
+                    endTime: null
+                    status: "PROCESSING"
+                    errors: []
+        '207':
+          description: Bulk upload completed with some errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkUploadResult'
+              examples:
+                partial_success:
+                  summary: Upload with some errors
+                  value:
+                    operationId: "bulk-003"
+                    totalRecords: 100
+                    successCount: 95
+                    failureCount: 5
+                    startTime: "2023-12-01T10:00:00"
+                    endTime: "2023-12-01T10:01:00"
+                    status: "COMPLETED_WITH_ERRORS"
+                    errors:
+                      - rowNumber: 23
+                        field: "price"
+                        message: "Price must be a positive number"
+                      - rowNumber: 45
+                        field: "name"
+                        message: "Book name cannot be empty"
+        '400':
+          $ref: '#/components/responses/BulkUploadError'
+        '413':
+          $ref: '#/components/responses/FileTooLarge'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /books/bulk/status/{operationId}:
+    get:
+      summary: Get bulk operation status
+      description: Retrieves the status and progress of a bulk upload operation
+      operationId: getBulkOperationStatus
+      tags:
+        - Bulk Operations
+      parameters:
+        - name: operationId
+          in: path
+          required: true
+          description: The unique identifier of the bulk operation
+          schema:
+            type: string
+            pattern: '^[a-zA-Z0-9\-_]+$'
+          example: "bulk-002"
+      responses:
+        '200':
+          description: Operation status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkUploadResult'
+              examples:
+                processing:
+                  summary: Operation in progress
+                  value:
+                    operationId: "bulk-002"
+                    totalRecords: 5000
+                    successCount: 2500
+                    failureCount: 10
+                    startTime: "2023-12-01T10:00:00"
+                    endTime: null
+                    status: "PROCESSING"
+                    errors:
+                      - rowNumber: 150
+                        field: "author"
+                        message: "Author name cannot be empty"
+                completed:
+                  summary: Operation completed
+                  value:
+                    operationId: "bulk-002"
+                    totalRecords: 5000
+                    successCount: 4990
+                    failureCount: 10
+                    startTime: "2023-12-01T10:00:00"
+                    endTime: "2023-12-01T10:05:00"
+                    status: "COMPLETED_WITH_ERRORS"
+                    errors:
+                      - rowNumber: 150
+                        field: "author"
+                        message: "Author name cannot be empty"
+        '404':
+          $ref: '#/components/responses/OperationNotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /books/bulk/operations:
+    get:
+      summary: Get all bulk operations
+      description: Retrieves a list of all bulk upload operations (admin/monitoring endpoint)
+      operationId: getAllBulkOperations
+      tags:
+        - Bulk Operations
+        - Admin
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: status
+          in: query
+          description: Filter operations by status
+          schema:
+            type: string
+            enum: [PROCESSING, COMPLETED, COMPLETED_WITH_ERRORS, FAILED]
+          example: "PROCESSING"
+        - name: startDate
+          in: query
+          description: Filter operations started after this date
+          schema:
+            type: string
+            format: date-time
+          example: "2023-12-01T00:00:00Z"
+      responses:
+        '200':
+          description: List of bulk operations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BulkOperationStatus'
+              examples:
+                operations_list:
+                  summary: List of bulk operations
+                  value:
+                    - operationId: "bulk-001"
+                      totalRecords: 50
+                      successCount: 50
+                      failureCount: 0
+                      startTime: "2023-12-01T09:00:00"
+                      endTime: "2023-12-01T09:00:30"
+                      status: "COMPLETED"
+                      fileName: "books_small.csv"
+                      fileSize: 2048
+                    - operationId: "bulk-002"
+                      totalRecords: 5000
+                      successCount: 2500
+                      failureCount: 10
+                      startTime: "2023-12-01T10:00:00"
+                      endTime: null
+                      status: "PROCESSING"
+                      fileName: "books_large.xlsx"
+                      fileSize: 1048576
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /books/bulk/cleanup:
+    delete:
+      summary: Cleanup old bulk operations
+      description: Removes old bulk operation records and their associated data
+      operationId: cleanupOldBulkOperations
+      tags:
+        - Bulk Operations
+        - Admin
+      parameters:
+        - name: daysOld
+          in: query
+          description: Delete operations older than this many days
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
+          example: 30
+      responses:
+        '200':
+          description: Cleanup completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanupResult'
+              examples:
+                cleanup_success:
+                  summary: Successful cleanup
+                  value:
+                    message: "Cleanup completed successfully"
+                    deletedCount: 25
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          description: Cleanup failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Cleanup failed"
+                  error:
+                    type: string
+                    example: "Database connection timeout"
+
+components:
+  schemas:
+    Book:
+      type: object
+      required:
+        - id
+        - name
+        - author
+        - price
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the book
+          example: 1
+          readOnly: true
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Title of the book
+          example: "Clean Code: A Handbook of Agile Software Craftsmanship"
+        author:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Author of the book
+          example: "Robert C. Martin"
+        price:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 9999.99
+          description: Price of the book in USD
+          example: 42.99
+      example:
+        id: 1
+        name: "Clean Code: A Handbook of Agile Software Craftsmanship"
+        author: "Robert C. Martin"
+        price: 42.99
+
+    BookRequest:
+      type: object
+      required:
+        - name
+        - author
+        - price
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Title of the book
+          example: "Design Patterns: Elements of Reusable Object-Oriented Software"
+        author:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Author of the book
+          example: "Gang of Four"
+        price:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 9999.99
+          description: Price of the book in USD
+          example: 54.99
+      example:
+        name: "Design Patterns: Elements of Reusable Object-Oriented Software"
+        author: "Gang of Four"
+        price: 54.99
+
+    BookPatch:
+      type: object
+      properties:
+        author:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Author of the book (currently the only supported field for patching)
+          example: "Robert C. Martin (Uncle Bob)"
+      description: Partial update object for book. Currently only supports updating the author field.
+      example:
+        author: "Robert C. Martin (Uncle Bob)"
+
+    BulkUploadResult:
+      type: object
+      required:
+        - operationId
+        - totalRecords
+        - successCount
+        - failureCount
+        - startTime
+        - status
+        - errors
+      properties:
+        operationId:
+          type: string
+          description: Unique identifier for the bulk operation
+          example: "bulk-001"
+        totalRecords:
+          type: integer
+          minimum: 0
+          description: Total number of records in the uploaded file
+          example: 100
+        successCount:
+          type: integer
+          minimum: 0
+          description: Number of successfully processed records
+          example: 95
+        failureCount:
+          type: integer
+          minimum: 0
+          description: Number of failed records
+          example: 5
+        startTime:
+          type: string
+          format: date-time
+          description: When the operation started
+          example: "2023-12-01T10:00:00"
+        endTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the operation completed (null if still processing)
+          example: "2023-12-01T10:01:00"
+        status:
+          type: string
+          enum: [PROCESSING, COMPLETED, COMPLETED_WITH_ERRORS, FAILED]
+          description: Current status of the operation
+          example: "COMPLETED_WITH_ERRORS"
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          description: List of validation errors that occurred during processing
+      example:
+        operationId: "bulk-001"
+        totalRecords: 100
+        successCount: 95
+        failureCount: 5
+        startTime: "2023-12-01T10:00:00"
+        endTime: "2023-12-01T10:01:00"
+        status: "COMPLETED_WITH_ERRORS"
+        errors:
+          - rowNumber: 23
+            field: "price"
+            message: "Price must be a positive number"
+
+    BulkOperationStatus:
+      type: object
+      required:
+        - operationId
+        - totalRecords
+        - successCount
+        - failureCount
+        - startTime
+        - status
+      properties:
+        operationId:
+          type: string
+          description: Unique identifier for the bulk operation
+          example: "bulk-001"
+        totalRecords:
+          type: integer
+          minimum: 0
+          description: Total number of records in the uploaded file
+          example: 100
+        successCount:
+          type: integer
+          minimum: 0
+          description: Number of successfully processed records
+          example: 95
+        failureCount:
+          type: integer
+          minimum: 0
+          description: Number of failed records
+          example: 5
+        startTime:
+          type: string
+          format: date-time
+          description: When the operation started
+          example: "2023-12-01T10:00:00"
+        endTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the operation completed (null if still processing)
+          example: "2023-12-01T10:01:00"
+        status:
+          type: string
+          enum: [PROCESSING, COMPLETED, COMPLETED_WITH_ERRORS, FAILED]
+          description: Current status of the operation
+          example: "COMPLETED"
+        errorDetails:
+          type: string
+          nullable: true
+          description: Detailed error information if the operation failed
+          example: "File format not supported"
+        fileName:
+          type: string
+          description: Original name of the uploaded file
+          example: "books.csv"
+        fileSize:
+          type: integer
+          format: int64
+          description: Size of the uploaded file in bytes
+          example: 2048
+      example:
+        operationId: "bulk-001"
+        totalRecords: 100
+        successCount: 100
+        failureCount: 0
+        startTime: "2023-12-01T10:00:00"
+        endTime: "2023-12-01T10:01:00"
+        status: "COMPLETED"
+        errorDetails: null
+        fileName: "books.csv"
+        fileSize: 2048
+
+    ValidationError:
+      type: object
+      required:
+        - rowNumber
+        - field
+        - message
+      properties:
+        rowNumber:
+          type: integer
+          description: Row number in the file where the error occurred (-1 for system errors)
+          example: 23
+        field:
+          type: string
+          description: Field name that caused the validation error
+          example: "price"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Price must be a positive number"
+      example:
+        rowNumber: 23
+        field: "price"
+        message: "Price must be a positive number"
+
+    SuccessMessage:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Success message
+          example: "Operation completed successfully"
+      example:
+        message: "Book deleted successfully"
+
+    CleanupResult:
+      type: object
+      required:
+        - message
+        - deletedCount
+      properties:
+        message:
+          type: string
+          description: Cleanup result message
+          example: "Cleanup completed successfully"
+        deletedCount:
+          type: integer
+          minimum: 0
+          description: Number of operations that were deleted
+          example: 25
+      example:
+        message: "Cleanup completed successfully"
+        deletedCount: 25
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type or category
+          example: "Validation Error"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Book name cannot be null or empty"
+        details:
+          type: object
+          description: Additional error details
+          additionalProperties: true
+      example:
+        error: "Validation Error"
+        message: "Book name cannot be null or empty"
+
+    ApiError:
+      type: object
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - path
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred
+          example: "2023-12-01T10:00:00"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        error:
+          type: string
+          description: HTTP status text
+          example: "Bad Request"
+        message:
+          type: string
+          description: Error message
+          example: "Validation failed"
+        path:
+          type: string
+          description: Request path that caused the error
+          example: "/books"
+      example:
+        timestamp: "2023-12-01T10:00:00"
+        status: 400
+        error: "Bad Request"
+        message: "Validation failed"
+        path: "/books"
+
+  parameters:
+    BookIdParam:
+      name: id
+      in: path
+      required: true
+      description: Unique identifier of the book
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      example: 1
+
+    PageParam:
+      name: page
+      in: query
+      description: Page number for pagination (0-based)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+
+    SizeParam:
+      name: size
+      in: query
+      description: Number of items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+
+    SortParam:
+      name: sort
+      in: query
+      description: Sort criteria in the format property[,direction]. Default direction is ascending.
+      schema:
+        type: string
+        pattern: '^[a-zA-Z]+[a-zA-Z0-9]*(,(asc|desc))?$'
+      examples:
+        sort_by_name:
+          summary: Sort by name ascending
+          value: "name"
+        sort_by_price_desc:
+          summary: Sort by price descending
+          value: "price,desc"
+        sort_by_author:
+          summary: Sort by author ascending
+          value: "author,asc"
+
+  responses:
+    BookNotFound:
+      description: Book not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          examples:
+            book_not_found:
+              summary: Book not found
+              value:
+                timestamp: "2023-12-01T10:00:00"
+                status: 404
+                error: "Not Found"
+                message: "Book not found with id: 999"
+                path: "/books/999"
+
+    OperationNotFound:
+      description: Bulk operation not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          examples:
+            operation_not_found:
+              summary: Operation not found
+              value:
+                timestamp: "2023-12-01T10:00:00"
+                status: 404
+                error: "Not Found"
+                message: "Bulk operation not found with id: invalid-id"
+                path: "/books/bulk/status/invalid-id"
+
+    ValidationError:
+      description: Validation error in request data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          examples:
+            validation_error:
+              summary: Validation failed
+              value:
+                timestamp: "2023-12-01T10:00:00"
+                status: 400
+                error: "Bad Request"
+                message: "Book name cannot be null or empty"
+                path: "/books"
+
+    UnsupportedPatchField:
+      description: Unsupported field in PATCH operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          examples:
+            unsupported_field:
+              summary: Unsupported patch field
+              value:
+                timestamp: "2023-12-01T10:00:00"
+                status: 405
+                error: "Method Not Allowed"
+                message: "Patch operation not supported for fields: [price]"
+                path: "/books/1"
+
+    BulkUploadError:
+      description: Error in bulk upload operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BulkUploadResult'
+          examples:
+            invalid_file:
+              summary: Invalid file format
+              value:
+                operationId: null
+                totalRecords: 0
+                successCount: 0
+                failureCount: 0
+                startTime: "2023-12-01T10:00:00"
+                endTime: "2023-12-01T10:00:01"
+                status: "FAILED"
+                errors:
+                  - rowNumber: -1
+                    field: "SYSTEM"
+                    message: "File format not supported. Please upload CSV or Excel files only."
+
+    FileTooLarge:
+      description: Uploaded file exceeds maximum size limit
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            file_too_large:
+              summary: File size exceeded
+              value:
+                error: "File size exceeds maximum limit"
+                message: "The uploaded file is too large. Maximum allowed size is 10MB."
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          examples:
+            server_error:
+              summary: Internal server error
+              value:
+                timestamp: "2023-12-01T10:00:00"
+                status: 500
+                error: "Internal Server Error"
+                message: "An unexpected error occurred"
+                path: "/books"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication (future implementation)
+
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT bearer token authentication (future implementation)
+
+# Currently no authentication is required
+# security: []
+
+tags:
+  - name: Books
+    description: Operations related to book management
+  - name: Search
+    description: Search operations for books
+  - name: Bulk Operations
+    description: Bulk upload and management operations
+  - name: Admin
+    description: Administrative operations
+
+externalDocs:
+  description: Find more info about the Book Management API
+  url: https://github.com/example/book-management-api
